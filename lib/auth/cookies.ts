@@ -29,16 +29,6 @@ export async function setAuthCookies(
   });
 }
 
-export async function getAccessToken(): Promise<string | undefined> {
-  const cookieStore = await cookies();
-  return cookieStore.get(TOKEN_NAME)?.value;
-}
-
-export async function getRefreshToken(): Promise<string | undefined> {
-  const cookieStore = await cookies();
-  return cookieStore.get(REFRESH_TOKEN_NAME)?.value;
-}
-
 export async function clearAuthCookies() {
   const cookieStore = await cookies();
   cookieStore.delete(TOKEN_NAME);
