@@ -18,7 +18,7 @@ A secure money transfer application frontend built with Next.js 16 (App Router),
 
 - Node.js 18+
 - pnpm (recommended) or npm
-- Backend API running on `http://localhost:3000` (see `../be/`)
+- Backend API running on `http://localhost:3000` (see `server/`)
 
 ## Getting Started
 
@@ -28,12 +28,11 @@ A secure money transfer application frontend built with Next.js 16 (App Router),
 pnpm install
 ```
 
-### 2. ⚠️ Start the backend (in a separate terminal)
+### 2. Start the backend (in a separate terminal)
 
 ```bash
-cd ../server
-npm install
-npm run dev
+cd server
+pnpm dev
 ```
 
 ### 3. Start the frontend
@@ -64,7 +63,8 @@ pay-quick/
 ├── lib/
 │   ├── api/               # API client and services
 │   └── auth/              # Authentication utilities
-└── docs/                  # Architecture documentation
+├── docs/                  # Architecture documentation
+└── server/                # Mock backend API (Express)
 ```
 
 ## Available Scripts
