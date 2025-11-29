@@ -549,13 +549,15 @@ tests/
 | **Trade-off**   | More complex setup, need CSRF protection, requires server coordination |
 | **Alternative** | localStorage (simpler, but vulnerable to XSS)                          |
 
-### 3. TanStack Query vs Redux / Zustand
+### 3. TanStack Query vs Redux Toolkit (RTK)
 
-| Decision        | TanStack Query for server state                                     |
+| Decision        | TanStack Query + React Context                                      |
 | --------------- | ------------------------------------------------------------------- |
 | **Why**         | Purpose-built for async data: caching, deduping, background refetch |
-| **Trade-off**   | Another library to learn, overkill for simple apps                  |
-| **Alternative** | Redux Toolkit Query (if already using Redux), SWR (lighter)         |
+| **Trade-off**   | Two paradigms (Query + Context), separate DevTools                  |
+| **Alternative** | RTK + RTK Query (unified state management)                          |
+
+> **Note on RTK + RTK Query:** For fintech applications at scale, Redux Toolkit with RTK Query is a strong alternative I'm actively considering. It offers unified debugging (single DevTools with time-travel), action history for audit trails, and a single mental model for the entire team. Many established fintech companies (Stripe, Robinhood) use Redux for these maintainability benefits. The trade-off is more boilerplate, but RTK significantly reduces this compared to classic Redux.
 
 ### 4. Feature-based vs Type-based Folder Structure
 
