@@ -51,17 +51,19 @@ flowchart TB
         subgraph Pages[" "]
             direction TB
             P1["Login<br/>Page"]
-            P2["Dashboard<br/>Page"]
-            P3["Send $<br/>Page"]
+            P2["Signup<br/>Page"]
+            P3["Dashboard<br/>Page"]
             P4["Transactions<br/>Page"]
-            P5["Accounts<br/>Page"]
+            P5["Payments<br/>Page"]
+            P6["Accounts<br/>Page"]
         end
 
         Pages --> Features
 
         subgraph Features["Feature Components"]
-            F1["LoginForm, TransactionList, SendMoneyForm"]
-            F2["AccountList, ConnectAccountModal"]
+            F1["LoginForm, SignupForm, TransactionList"]
+            F2["SendMoneyForm, RequestMoneyForm, PendingRequests"]
+            F3["AccountList, ConnectAccountModal"]
         end
 
         Features --> UIKit
@@ -82,17 +84,19 @@ flowchart TB
             subgraph TSQueries["Queries"]
                 direction LR
                 TQ1["transactions"]
-                TQ2["accounts"]
-                TQ3["profile"]
-                TQ4["notifications"]
+                TQ2["requests"]
+                TQ3["accounts"]
+                TQ4["profile"]
+                TQ5["notifications"]
             end
             subgraph TSMutations["Mutations"]
                 direction LR
                 TM1["useLogin<br/>useLogout"]
-                TM2["useSendMoney"]
-                TM3["useConnectAccount<br/>useDisconnectAccount"]
-                TM4["useUpdateProfile"]
-                TM5["useMarkAsRead<br/>useMarkAllAsRead"]
+                TM2["useSendMoney<br/>useRequestMoney"]
+                TM3["useRespondToRequest"]
+                TM4["useConnectAccount<br/>useDisconnectAccount"]
+                TM5["useUpdateProfile"]
+                TM6["useMarkAsRead<br/>useMarkAllAsRead"]
             end
         end
 
@@ -143,14 +147,14 @@ flowchart TB
 app/
 ├── (auth)/                    # Auth route group (public)
 │   ├── login/page.tsx
-│   └── register/page.tsx
+│   └── signup/page.tsx
 ├── (protected)/               # Protected route group
 │   ├── layout.tsx             # Auth guard wrapper
 │   ├── dashboard/page.tsx
 │   ├── transactions/
 │   │   ├── page.tsx           # List view
 │   │   └── [id]/page.tsx      # Detail view
-│   ├── send/page.tsx
+│   ├── payments/page.tsx         # Send & Request money (tabbed)
 │   └── settings/
 │       ├── profile/page.tsx
 │       └── accounts/page.tsx
@@ -159,9 +163,9 @@ app/
 components/
 ├── ui/                        # shadcn/ui primitives
 ├── features/                  # Feature-specific components
-│   ├── auth/
-│   ├── transactions/
-│   ├── send/
+│   ├── auth/                  # LoginForm, SignupForm
+│   ├── transactions/          # TransactionList, TransactionDetail
+│   ├── payments/              # SendMoneyForm, RequestMoneyForm, PendingRequests
 │   └── accounts/              # AccountList, ConnectAccountModal
 └── shared/                    # Cross-feature components
 ```
@@ -197,7 +201,8 @@ lib/
 │   └── endpoints.ts           # Endpoint constants
 └── services/
     ├── auth.service.ts        # login, logout, refresh, register
-    ├── transaction.service.ts # getAll, getById, create
+    ├── transaction.service.ts # getAll, getById
+    ├── payment.service.ts     # sendMoney, requestMoney, respondToRequest
     ├── account.service.ts     # link, unlink, getLinked
     └── user.service.ts        # getProfile, updateProfile
 ```
@@ -217,16 +222,24 @@ See [Authentication & Security](#authentication--security) section.
 
 ## Data Flow
 
-### Unidirectional Data Flow
+### State Management (Unidirectional)
 
 ```
-User Action → Event Handler → Service Call → State Update → Re-render
-     │                                              │
-     └──────────────────────────────────────────────┘
-                    (UI reflects state)
+┌────────────────────────────────────────────────────┐
+│                                                    │
+▼                                                    │
+State ────► UI Render ────► User Event ────► State Update
+(Query Cache)  (React)      (onClick)     (mutation/dispatch)
 ```
 
-### Example: Send Money Flow
+- **UI is a pure function of state** - Components render based on current state
+- **State changes flow down** - Parent passes data to children via props
+- **Events flow up** - User actions trigger mutations/dispatches that update state
+- **Predictable updates** - State changes always follow the same path
+
+### API Communication (Request/Response)
+
+For server interactions, the frontend uses a request/response pattern. The sequence below shows how a mutation flows through the system:
 
 ```mermaid
 sequenceDiagram
@@ -275,22 +288,25 @@ Configuration approach for data fetching:
 | Domain        | Query Key                | Service Function        | Endpoint                  |
 | ------------- | ------------------------ | ----------------------- | ------------------------- |
 | Transactions  | `['transactions', page]` | `getTransactions(page)` | `GET /transactions?page=` |
+| Requests      | `['requests']`           | `getRequests()`         | `GET /requests`           |
 | Accounts      | `['accounts']`           | `getAccounts()`         | `GET /accounts`           |
 | Profile       | `['profile']`            | `getProfile()`          | `GET /users/me`           |
 | Notifications | `['notifications']`      | `getNotifications()`    | `GET /notifications`      |
 
 #### TanStack Mutations
 
-| Domain        | Hook                   | Service Function        | Endpoint                        | Invalidates         |
-| ------------- | ---------------------- | ----------------------- | ------------------------------- | ------------------- |
-| Auth          | `useLogin`             | `login(credentials)`    | `POST /login`                   | —                   |
-| Auth          | `useLogout`            | `logout()`              | `POST /logout`                  | All queries         |
-| Transactions  | `useSendMoney`         | `sendMoney(data)`       | `POST /transactions`            | `['transactions']`  |
-| Accounts      | `useConnectAccount`    | `connectAccount(data)`  | `POST /accounts/connect`        | `['accounts']`      |
-| Accounts      | `useDisconnectAccount` | `disconnectAccount(id)` | `DELETE /accounts/:id`          | `['accounts']`      |
-| Profile       | `useUpdateProfile`     | `updateProfile(data)`   | `PATCH /users/me`               | `['profile']`       |
-| Notifications | `useMarkAsRead`        | `markAsRead(id)`        | `PATCH /notifications/:id`      | `['notifications']` |
-| Notifications | `useMarkAllAsRead`     | `markAllAsRead()`       | `PATCH /notifications/read-all` | `['notifications']` |
+| Domain        | Hook                   | Service Function         | Endpoint                        | Invalidates                    |
+| ------------- | ---------------------- | ------------------------ | ------------------------------- | ------------------------------ |
+| Auth          | `useLogin`             | `login(credentials)`     | `POST /login`                   | —                              |
+| Auth          | `useLogout`            | `logout()`               | `POST /logout`                  | All queries                    |
+| Payments      | `useSendMoney`         | `sendMoney(data)`        | `POST /transactions`            | `['transactions']`             |
+| Payments      | `useRequestMoney`      | `requestMoney(data)`     | `POST /requests`                | `['requests']`                 |
+| Payments      | `useRespondToRequest`  | `respondToRequest(data)` | `PATCH /requests/:id`           | `['requests', 'transactions']` |
+| Accounts      | `useConnectAccount`    | `connectAccount(data)`   | `POST /accounts/connect`        | `['accounts']`                 |
+| Accounts      | `useDisconnectAccount` | `disconnectAccount(id)`  | `DELETE /accounts/:id`          | `['accounts']`                 |
+| Profile       | `useUpdateProfile`     | `updateProfile(data)`    | `PATCH /users/me`               | `['profile']`                  |
+| Notifications | `useMarkAsRead`        | `markAsRead(id)`         | `PATCH /notifications/:id`      | `['notifications']`            |
+| Notifications | `useMarkAllAsRead`     | `markAllAsRead()`        | `PATCH /notifications/read-all` | `['notifications']`            |
 
 ---
 
@@ -306,7 +322,8 @@ lib/
 │   └── endpoints.ts           # Endpoint constants
 └── services/
     ├── auth.service.ts        # login, logout, refresh, register
-    ├── transaction.service.ts # getAll, getById, create
+    ├── transaction.service.ts # getAll, getById
+    ├── payment.service.ts     # sendMoney, requestMoney, respondToRequest
     ├── account.service.ts     # link, unlink, getLinked
     └── user.service.ts        # getProfile, updateProfile
 ```
