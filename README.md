@@ -28,10 +28,10 @@ A secure money transfer application frontend built with Next.js 16 (App Router),
 pnpm install
 ```
 
-### 2. Start the backend (in a separate terminal)
+### 2. ⚠️ Start the backend (in a separate terminal)
 
 ```bash
-cd ../be
+cd ../server
 npm install
 npm run dev
 ```
